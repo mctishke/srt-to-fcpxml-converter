@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRT to FCPXML Converter</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23667eea' width='100' height='100'/><text x='50' y='70' font-size='60' font-weight='bold' fill='white' text-anchor='middle'>▶</text></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #999;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        input[type="file"],
+        select,
+        input[type="number"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+        input[type="file"]:focus,
+        select:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .settings {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .settings .form-group {
+            margin-bottom: 0;
+        }
+        .drop-zone {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+            background: #fafbff;
+        }
+        .drop-zone:hover,
+        .drop-zone.dragover {
+            background: #f0f4ff;
+            border-color: #764ba2;
+        }
+        .drop-zone p {
+            color: #666;
+            margin: 0;
+            font-size: 14px;
+        }
+        .drop-zone strong {
+            display: block;
+            color: #667eea;
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+        .drop-zone.loaded strong {
+            color: #4caf50;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .info {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #555;
+            margin-top: 20px;
+            line-height: 1.5;
+        }
+        .preview {
+            margin-top: 20px;
+            display: none;
+        }
+        .preview.show {
+            display: block;
+        }
+        .preview-toggle {
+            background: #f5f5f5;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .preview-toggle:hover {
+            background: #ebebeb;
+        }
+        .preview-content {
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            color: #333;
+            white-space: pre-wrap;
+            word-break: break-all;
+            display: none;
+        }
+        .preview-content.show {
+            display: block;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            display: none;
+            font-size: 14px;
+        }
+        .status.show {
+            display: block;
+        }
+        .status.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+        .custom-resolution {
+            display: none;
+        }
+        .custom-resolution.show {
+            display: contents;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SRT to FCPXML</h1>
+        <p class="subtitle">Converts subtitles to Final Cut Pro format with "Captions De Tijd"</p>
+
+        <div class="drop-zone" id="dropZone">
+            <strong>📁 Drop SRT file here</strong>
+            <p>or click to select</p>
+            <input type="file" id="srtFile" accept=".srt" style="display: none;">
+        </div>
+
+
+        <button id="convertBtn" disabled>Convert to FCPXML</button>
+
+        <div class="preview" id="preview">
+            <button class="preview-toggle" id="previewToggle">📄 Preview FCPXML</button>
+            <div class="preview-content" id="previewContent"></div>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="info">
+            ℹ️ Generates an FCPXML file with your custom title style ready to import into Final Cut Pro. After import, you can fine-tune timing and text in FCP as needed.
+        </div>
+    </div>
+
+    <script>
+        const srtInput = document.getElementById('srtFile');
+        const dropZone = document.getElementById('dropZone');
+        const convertBtn = document.getElementById('convertBtn');
+        const preview = document.getElementById('preview');
+        const previewToggle = document.getElementById('previewToggle');
+        const previewContent = document.getElementById('previewContent');
+        const status = document.getElementById('status');
+        const resolutionSelect = document.getElementById('resolution');
+        const customResolution = document.getElementById('customResolution');
+        const customResolution2 = document.getElementById('customResolution2');
+
+        let parsedSRT = null;
+        let srtFilename = 'subtitles';
+
+
+        // Drag and drop
+        dropZone.addEventListener('click', () => srtInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files[0]) {
+                srtInput.files = e.dataTransfer.files;
+                handleFileSelect();
+            }
+        });
+
+        srtInput.addEventListener('change', handleFileSelect);
+
+        function handleFileSelect() {
+            const file = srtInput.files[0];
+            if (!file) return;
+
+            srtFilename = file.name.replace(/\.[^/.]+$/, ''); // Remove extension
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    parsedSRT = parseSRT(e.target.result);
+                    if (parsedSRT.length === 0) {
+                        throw new Error('No subtitles found in SRT file');
+                    }
+                    convertBtn.disabled = false;
+                    showStatus(`✓ Loaded ${parsedSRT.length} subtitle(s)`, 'success');
+                    dropZone.classList.add('loaded');
+                    dropZone.innerHTML = `<strong>✓ ${file.name}</strong><p>${parsedSRT.length} subtitle(s) ready</p>`;
+                } catch (err) {
+                    showStatus(`✗ Error: ${err.message}`, 'error');
+                    convertBtn.disabled = true;
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function parseSRT(content) {
+            const blocks = content.trim().split(/\n\s*\n+/);
+            let subtitles = [];
+
+            for (const block of blocks) {
+                const lines = block.trim().split('\n');
+                if (lines.length < 3) continue;
+
+                const timecode = lines[1];
+                const match = timecode.match(/(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})/);
+                if (!match) continue;
+
+                const start = timeToSeconds(match[1]);
+                const end = timeToSeconds(match[2]);
+                const text = lines.slice(2).join('\n').trim();
+
+                if (text) {
+                    subtitles.push({ start, end, text });
+                }
+            }
+
+            // Filter out subtitles shorter than 0.5 seconds (metadata artifacts)
+            subtitles = subtitles.filter(sub => (sub.end - sub.start) >= 0.5);
+
+            return subtitles;
+        }
+
+        function timeToSeconds(timeStr) {
+            const [time, ms] = timeStr.split(',');
+            const [h, m, s] = time.split(':').map(Number);
+            return h * 3600 + m * 60 + s + parseInt(ms) / 1000;
+        }
+
+        function secondsToFCPXML(seconds, fps) {
+            // Round to nearest frame boundary
+            const frameSize = 1 / fps;
+            const frameCount = Math.round(seconds / frameSize);
+            const alignedSeconds = frameCount * frameSize;
+
+            const numerator = frameCount * 100;
+            const denominator = fps * 100;
+
+            // If it's a whole number of seconds, represent as "Xs"
+            if (frameCount * 100 % denominator === 0) {
+                return `${(frameCount * 100) / denominator}s`;
+            }
+
+            return `${numerator}/${denominator}s`;
+        }
+
+        function getResolution() {
+            return { width: 1080, height: 1920, name: 'FFVideoFormatVertical1920' };
+        }
+
+        convertBtn.addEventListener('click', () => {
+            if (!parsedSRT) return;
+
+            try {
+                const fps = 25;
+                const resolution = getResolution();
+                const fcpxml = generateFCPXML(parsedSRT, fps, resolution);
+
+                previewContent.textContent = fcpxml;
+                preview.classList.add('show');
+
+                // Download
+                const filename = `${srtFilename}.fcpxml`;
+
+                const blob = new Blob([fcpxml], { type: 'application/xml' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                showStatus('✓ FCPXML generated and downloaded! Import it into Final Cut Pro.', 'success');
+            } catch (err) {
+                showStatus(`✗ Error: ${err.message}`, 'error');
+            }
+        });
+
+        previewToggle.addEventListener('click', () => {
+            previewContent.classList.toggle('show');
+        });
+
+        function showStatus(msg, type) {
+            status.textContent = msg;
+            status.className = `status show ${type}`;
+        }
+
+        function generateFCPXML(subtitles, fps, resolution) {
+            // Frame duration: 1 frame = 1/fps seconds
+            // In fraction form with denominator fps*100: numerator = 100
+            const frameDuration = `${100}/${Math.round(fps * 100)}s`;
+            const eventUUID = generateUUID();
+            const projectUUID = generateUUID();
+            const modDate = formatFCPXMLDate(new Date());
+            const projectName = srtFilename;
+
+            let titles = '';
+            for (let i = 0; i < subtitles.length; i++) {
+                const sub = subtitles[i];
+                const offset = secondsToFCPXML(sub.start, fps);
+                const duration = secondsToFCPXML(sub.end - sub.start, fps);
+                const tsId = `ts${i + 1}`;
+                const textSnippet = sub.text.substring(0, 50);
+                const name = textSnippet + (sub.text.length > 50 ? '...' : '') + ' - Captions De Tijd';
+
+                titles += `        <title ref="r2" offset="${offset}" name="${escapeXML(name)}" start="${offset}" duration="${duration}" role="Subs.Subs-1">
+            <param name="Anchor Point" key="9999/10007/3000000601/1/100/107" value="1722.2 -169.203"/>
+            <param name="Layout Method" key="9999/10007/3000000601/2/314" value="1 (Paragraph)"/>
+            <param name="Left Margin" key="9999/10007/3000000601/2/323" value="1409.7"/>
+            <param name="Right Margin" key="9999/10007/3000000601/2/324" value="2026.8"/>
+            <param name="Bottom Margin" key="9999/10007/3000000601/2/326" value="-326"/>
+            <param name="Alignment" key="9999/10007/3000000601/2/354/10041/401" value="1 (Center)"/>
+            <param name="Alignment" key="9999/10007/3000000601/2/354/3360024080/401" value="1 (Center)"/>
+            <param name="Alignment" key="9999/10007/3000000601/2/373" value="0 (Left) 1 (Middle)"/>
+            <text>
+                <text-style ref="${tsId}">${escapeXML(sub.text)}</text-style>
+            </text>
+            <text-style-def id="${tsId}">
+                <text-style font="ARS Maquette Pro" fontSize="40" fontFace="Black" fontColor="1 1 1 1" bold="1" strokeColor="0 0 0 0" strokeWidth="-8" alignment="center"/>
+            </text-style-def>
+        </title>
+`;
+            }
+
+            const lastSub = subtitles[subtitles.length - 1];
+            const sequenceDuration = secondsToFCPXML(lastSub.end + 2, fps);
+
+            return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE fcpxml>
+
+<fcpxml version="1.13">
+    <resources>
+        <format id="r1" name="${resolution.name}" frameDuration="${frameDuration}" width="${resolution.width}" height="${resolution.height}" colorSpace="1-1-1 (Rec. 709)"/>
+        <effect id="r2" name="Captions De Tijd" uid="~/Titles.localized/⭐️/⚡️/Captions De Tijd/Captions De Tijd.moti" src="file:///Users/thijs.deblock/Library/Containers/com.apple.FinalCut/Data/Movies/Motion%20Templates.localized/Titles.localized/%E2%AD%90%EF%B8%8F/%E2%9A%A1%EF%B8%8F/Captions%20De%20Tijd/Captions%20De%20Tijd.moti"/>
+    </resources>
+    <library location="file:///Users/thijs.deblock/Desktop/Subtitles/">
+        <event name="Subtitles" uid="${eventUUID}">
+            <project name="${projectName}" uid="${projectUUID}" modDate="${modDate}">
+                <sequence format="r1" duration="${sequenceDuration}" tcStart="0s" tcFormat="NDF" renderFormat="FFRenderFormatProRes422Proxy" audioLayout="stereo" audioRate="48k">
+                    <spine>
+${titles}                    </spine>
+                </sequence>
+            </project>
+        </event>
+    </library>
+</fcpxml>`;
+        }
+
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        function formatFCPXMLDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} +0200`;
+        }
+
+        function escapeXML(str) {
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;');
+        }
+    </script>
+</body>
+</html>
